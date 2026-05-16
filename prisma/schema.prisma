@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FROZEN
+  CLOSED
+}
+
+enum NotifyStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum ChannelProvider {
+  ALIPAY
+  WECHAT
+}
+
+model Config {
+  key       String   @id @db.VarChar(64)
+  value     String?  @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model Merchant {
+  id        Int      @id
+  name      String   @db.VarChar(128)
+  apiKey    String   @db.VarChar(64)
+  money     Decimal  @default(0) @db.Decimal(10, 2)
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model PayType {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique @db.VarChar(30)
+  name      String    @db.VarChar(30)
+  enabled   Boolean   @default(true)
+  sort      Int       @default(0)
+  channels  Channel[]
+  orders    Order[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Channel {
+  id             Int             @id @default(autoincrement())
+  typeId         Int
+  provider       ChannelProvider
+  code           String          @unique @db.VarChar(40)
+  name           String          @db.VarChar(80)
+  product        String          @db.VarChar(40)
+  enabled        Boolean         @default(false)
+  rate           Decimal         @default(100) @db.Decimal(5, 2)
+  payMin         Decimal?        @db.Decimal(10, 2)
+  payMax         Decimal?        @db.Decimal(10, 2)
+  config         Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  type           PayType         @relation(fields: [typeId], references: [id])
+  orders         Order[]
+
+  @@index([typeId, enabled])
+}
+
+model Order {
+  tradeNo        String       @id @db.Char(19)
+  outTradeNo     String       @db.VarChar(150)
+  apiTradeNo     String?      @db.VarChar(150)
+  merchantId     Int          @default(1000)
+  typeId         Int?
+  channelId      Int?
+  typeCode       String?      @db.VarChar(30)
+  channelCode    String?      @db.VarChar(40)
+  name           String       @db.VarChar(127)
+  money          Decimal      @db.Decimal(10, 2)
+  realMoney      Decimal?     @db.Decimal(10, 2)
+  getMoney       Decimal?     @db.Decimal(10, 2)
+  notifyUrl      String       @db.VarChar(500)
+  returnUrl      String?      @db.VarChar(500)
+  param          String?      @db.VarChar(500)
+  domain         String?      @db.VarChar(180)
+  ip             String?      @db.VarChar(45)
+  device         String?      @db.VarChar(30)
+  buyer          String?      @db.VarChar(128)
+  payUrl         String?      @db.VarChar(1000)
+  qrCode         String?      @db.VarChar(1000)
+  urlScheme      String?      @db.VarChar(1000)
+  providerResult Json?
+  status         OrderStatus  @default(PENDING)
+  notifyStatus   NotifyStatus @default(PENDING)
+  notifyCount    Int          @default(0)
+  notifyLastAt   DateTime?
+  createdAt      DateTime     @default(now())
+  paidAt         DateTime?
+  updatedAt      DateTime     @updatedAt
+  merchant       Merchant     @relation(fields: [merchantId], references: [id])
+  type           PayType?     @relation(fields: [typeId], references: [id])
+  channel        Channel?     @relation(fields: [channelId], references: [id])
+  notifyLogs     NotifyLog[]
+
+  @@unique([merchantId, outTradeNo])
+  @@index([apiTradeNo])
+  @@index([status, createdAt])
+  @@index([typeId, channelId])
+}
+
+model NotifyLog {
+  id           Int          @id @default(autoincrement())
+  tradeNo      String       @db.Char(19)
+  url          String       @db.VarChar(500)
+  params       Json
+  responseCode Int?
+  responseBody String?      @db.Text
+  status       NotifyStatus @default(PENDING)
+  error        String?      @db.Text
+  createdAt    DateTime     @default(now())
+  order        Order        @relation(fields: [tradeNo], references: [tradeNo])
+
+  @@index([tradeNo, createdAt])
+}
+
+model AdminSession {
+  id        String   @id @db.VarChar(64)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
