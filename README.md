@@ -42,7 +42,7 @@ Next 易支付是一个基于 Next.js App Router 的单商户易支付兼容程�
 ### 安装
 
 ```bash
-git clone https://github.com/your-name/epay-next.git
+git clone https://github.com/DearLicy/epay_next.git
 cd epay-next
 cp .env.example .env
 npm install
